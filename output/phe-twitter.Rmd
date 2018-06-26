@@ -1,0 +1,353 @@
+---
+title: "phe-tweets"
+author: "Julian Flowers"
+date: "26/06/2018"
+output: html_document
+---
+
+Thanks to Tom Merritt Smith @ NHSBA for sharing code
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, warning = FALSE, message = FALSE)
+
+library(pacman)
+
+p_load(rtweet, tidytext, tidyverse, zoo, myScrapers, widyr, igraph, ggraph, text2vec)
+
+```
+
+## Get phe tweets
+
+
+
+```{r tweets}
+
+phe_tweets <- rtweet::get_timeline("PHE_uk", n = 3200)
+
+class(phe_tweets)
+
+tweetstophe <-  rtweet::search_tweets("@PHE_uk", n = 18000, include_rts = TRUE, retryonratelimit = TRUE)
+
+write_csv(phe_tweets, "data/phetweets.csv")
+rtweet::write_as_csv(tweetstophe, "data/tweetstophe.csv")
+
+```
+
+## Plots
+
+You can also embed plots, for example:
+
+```{r time-series, echo=FALSE}
+
+phe_tweets %>%
+  mutate(rm = rollmean(x = retweet_count, 28, align = "right", fill = NA)) %>%
+  ggplot(aes(created_at, rm)) +
+  geom_line() +
+  #geom_smooth(span = 1) +
+  labs(y = "Retweet count: monthly rolling average", 
+       x = "Date of tweet")
+
+
+
+```
+
+## Text mining tweets - what does PHE say
+
+```{r}
+
+phe_tweets <- phe_tweets %>%
+  mutate(text = str_remove_all(phe_tweets$text, "https.*t.co.\\w+"))
+
+phe_tweets_text <- phe_tweets %>%
+  select(text) %>%
+  mutate(docid = row_number()) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  filter(!word %in% c("blog", "amp", "phe_uk", "rt"))
+  
+
+phe_tweets_text %>%
+  count(word, sort = TRUE) %>%
+  print(30)
+
+
+phe_tweets %>%
+  select(text) %>%
+  na.omit() %>%
+  create_bigrams(text) %>%
+  filter(!str_detect(bigram, "rt|https")) %>%
+  count(bigram, sort = TRUE) %>%
+  print(20)
+
+
+```
+
+## tfidf
+
+$tfidf(term)=n(termcountwithindocument)∗ln(ndocuments/ndocuments containing term)$
+
+```{r}
+
+phe_tfidf <- phe_tweets_text %>%
+  count(docid, word) %>%
+  bind_tf_idf(word, docid, n)
+
+
+phe_tfidf %>%
+  arrange(-tf_idf) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  top_n(20) %>%
+  ggplot(aes(word, tf_idf, fill = word)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(x = "")
+  
+
+
+```
+
+## PHE mentions
+
+Only tweets in last week are available
+
+```{r plots, echo=FALSE}
+
+tweetstophe %>%
+  mutate(rm = rollmean(x = retweet_count, 28, align = "right", fill = NA)) %>%
+  ggplot(aes(created_at, rm)) +
+  geom_line() +
+  #geom_smooth(span = 1) +
+  labs(y = "Retweet count: monthly rolling average", 
+       x = "Date of tweet")
+
+
+
+```
+
+```{r}
+
+tweetstophe <- tweetstophe %>%
+  mutate(text = str_remove_all(tweetstophe$text, "https.*t.co.\\w+"))
+
+tophetweets_text <- tweetstophe %>%
+  select(text) %>%
+  mutate(docid = row_number()) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  filter(!word %in% c("blog", "amp", "phe_uk", "rt"))
+  
+
+tophetweets_text %>%
+  count(word, sort = TRUE) %>%
+  print(30)
+
+
+tweetstophe %>%
+  select(text) %>%
+  na.omit() %>%
+  create_bigrams(text) %>%
+  filter(!str_detect(bigram, "rt|https|amp|phe_uk|blog")) %>%
+  count(bigram, sort = TRUE) %>%
+  print(20)
+
+```
+
+## Sentiment
+
+
+```{r}
+phe_tweets %>% 
+  select(text, created_at) %>%
+  unnest_tokens(word, text) %>%
+  inner_join(get_sentiments("afinn")) %>% 
+  mutate(created_at = as.Date(created_at)) -> phe_sentiment_over_time
+
+phe_sentiment_over_time %>%
+  group_by(created_at) %>% summarise(sentiment = sum(score)) %>%
+  ggplot(aes(x = created_at, y = rollmean(sentiment, 10, na.pad = T))) + geom_line() +
+  ggtitle("Rolling Average sentiment score of tweets over time") +
+  xlab("Time of tweet") + ylab("Average sentiment score") +
+  scale_x_date(date_breaks = "1 month") + theme(axis.text.x = element_text(angle = 90)) +
+  geom_hline(yintercept = 0)
+
+
+
+
+
+
+
+
+
+```
+
+```{r}
+
+
+phe_tweets %>%
+  select(text, status_id) %>% 
+  unnest_tokens(word, text) %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(status_id) %>% summarise(sentiment = mean(score, na.rm = T)) %>% ## average sentiment for each tweet
+  select(status_id, sentiment) %>% inner_join(phe_tweets) %>% 
+  select(text, retweet_count, sentiment) %>% arrange(desc(retweet_count)) %>% slice(1:10)
+
+
+```
+
+## Correlations
+
+
+Pairwise counts
+```{r}
+
+pairwise <- phe_tweets_text %>%
+  pairwise_count(word, docid, sort = TRUE) %>%
+  
+
+head(pairwise, 10)
+
+```
+
+Pairwise correlations
+
+```{r}
+
+
+phe_tweets_text %>%
+  filter(n() >= 10) %>%
+  pairwise_cor(word, docid, sort = TRUE) %>%
+  print(n = 20)
+
+
+
+```
+
+Correlations for specific terms
+
+```{r}
+
+
+phe_tweets_text %>%
+  group_by(word) %>%
+  filter(n() >= 10) %>%
+  pairwise_cor(word, docid, sort = TRUE) %>%
+  filter(item1 != "t.co" & item2 != "t.co") %>%
+  filter(item1 %in% c("diabetes", "cancer", "mental", "avian")) %>%
+  group_by(item1) %>%
+  top_n(15) %>%
+  ungroup() %>%
+  mutate(item2 = reorder(item2, correlation)) %>%
+  ggplot(aes(item2, correlation)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ item1, scales = "free") +
+  coord_flip()
+
+
+
+```
+
+Correaltion networks
+
+```{r}
+
+
+bigram_newtork <- tweetstophe %>%
+  select(text) %>%
+  na.omit() %>%
+  create_bigrams(text) %>%
+  filter(!str_detect(bigram, "rt|https")) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% c("phe_uk", "amp", "health", "england"), 
+         !word2 %in% c("phe_uk", "amp", "health", "england")) %>%
+  anti_join(stop_words, by = c("word1" = "word")) %>%
+  anti_join(stop_words, by = c("word2" = "word")) %>%
+  count(word1, word2, sort = TRUE) %>%
+  filter(n >50) %>%
+  graph_from_data_frame()
+
+a <- grid::arrow(type = "closed", length = unit(.15, "cm"))
+
+ggraph(bigram_newtork, layout = "kk") +
+  geom_edge_link(aes(edge_alpha = n), 
+                 show.legend = FALSE, 
+                 arrow = a, 
+                 end_cap = circle(0.07, "inches")) +
+  geom_node_point(color = "goldenrod", size = 3) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1, size = 3) +
+  theme_void()
+
+
+
+
+```
+
+## Advanced techniques
+I’m using the package text2vec to do the following methods. It’s a good package, but the style is not to everyone’s liking. An alternative is to look at quanteda, which is also really fast.
+
+### Topic Embeddings with LDA
+LDA (Latent Dirichlet Allocation) is a clustering method for documents. LDA assumes the documents were created using a generative process, and tries to unpick the details of this process. One nice feature of this is that documents are represented as a proportion of each topic, rather than just assigned to one topic uniquely.
+
+
+
+```{r}
+
+it = itoken(iconv(phe_tweets$text, "latin1","ASCII", sub = ""), ## trying to deal with the encoding issues here
+            preprocessor = tolower, 
+            tokenizer = word_tokenizer,
+            ids = 1:nrow(phe_tweets), 
+            progressbar = FALSE)
+
+vocab = create_vocabulary(it, stopwords = c(stop_words$word,"t.co","https", "rt"))
+
+vectorizer = vocab_vectorizer(vocab)
+
+#dtm = phetweet_text %>% cast_sparse(docid, word)
+dtm = create_dtm(it, vectorizer)
+
+
+
+
+```
+
+
+```{r}
+n_topics = 6
+lda = LDA$new(n_topics = 6L, doc_topic_prior = 50 / n_topics, topic_word_prior = 1 / n_topics)
+doc_topic_distr = lda$fit_transform(dtm, n_iter = 1000, convergence_tol = 1e-3, n_check_convergence = 10, progressbar = F)
+```
+
+```{r}
+
+lda$get_top_words(n = 10, lambda = 1)
+
+lda$plot()
+
+```
+
+## word2vec
+
+Made famous by Tomas Mikolov’s word2vec, word embeddings use a term collocation matrix (count of how many times each pair of terms co-occur) and some clever matrix manipulation (either a shallow neural network, or singular value decompositon depending on your choice of algorithm) to calculate a vector representation for each word. This allows you to look at terms which are similar within the document across topics.
+
+(For a proper explanation, see https://blog.acolyer.org/2016/04/21/the-amazing-power-of-word-vectors/)
+
+
+
+```{r}
+tcm = create_tcm(it, vectorizer, skip_grams_window = 5L)
+
+glove = GlobalVectors$new(word_vectors_size = 100, vocabulary = vocab, x_max = 20)
+
+wv_main = glove$fit_transform(tcm, n_iter = 50, convergence_tol = 0.01,)
+
+wv_context = glove$components
+
+word_vectors = wv_main + t(wv_context)
+
+cos_sim = sim2(x = word_vectors, y = word_vectors["duncan", , drop = FALSE], 
+               method = "cosine", norm = "l2")
+
+head(sort(cos_sim[,1], decreasing = TRUE), 30)
+
+
+```
+
