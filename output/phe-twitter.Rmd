@@ -1,8 +1,10 @@
----
+  ---
 title: "phe-tweets"
 author: "Julian Flowers"
 date: "26/06/2018"
 output: html_document
+params: 
+  term: "@PublicHealthBot"
 ---
 
 Thanks to Tom Merritt Smith @ NHSBA for sharing code
@@ -22,11 +24,17 @@ p_load(rtweet, tidytext, tidyverse, zoo, myScrapers, widyr, igraph, ggraph, text
 
 ```{r tweets}
 
-phe_tweets <- rtweet::get_timeline("PHE_uk", n = 3200)
+params <- params$term
+
+phe_tweets <- rtweet::get_timeline("@PublicHealthBot", n = 3200)
 
 class(phe_tweets)
 
-tweetstophe <-  rtweet::search_tweets("@PHE_uk", n = 18000, include_rts = TRUE, retryonratelimit = TRUE)
+tweetstophe %>%
+  unnest(geo_coords) %>%
+  filter(!is.na(place_name))
+
+tweetstophe <-  rtweet::search_tweets("@PublicHealthBot", n = 18000, include_rts = TRUE, retryonratelimit = TRUE)
 
 write_csv(phe_tweets, "data/phetweets.csv")
 rtweet::write_as_csv(tweetstophe, "data/tweetstophe.csv")
@@ -201,7 +209,7 @@ Pairwise counts
 ```{r}
 
 pairwise <- phe_tweets_text %>%
-  pairwise_count(word, docid, sort = TRUE) %>%
+  pairwise_count(word, docid, sort = TRUE) 
   
 
 head(pairwise, 10)
@@ -333,6 +341,7 @@ Made famous by Tomas Mikolov’s word2vec, word embeddings use a term collocatio
 
 
 ```{r}
+term <- "hot"
 tcm = create_tcm(it, vectorizer, skip_grams_window = 5L)
 
 glove = GlobalVectors$new(word_vectors_size = 100, vocabulary = vocab, x_max = 20)
@@ -343,7 +352,7 @@ wv_context = glove$components
 
 word_vectors = wv_main + t(wv_context)
 
-cos_sim = sim2(x = word_vectors, y = word_vectors["duncan", , drop = FALSE], 
+cos_sim = sim2(x = word_vectors, y = word_vectors[term, , drop = FALSE], 
                method = "cosine", norm = "l2")
 
 head(sort(cos_sim[,1], decreasing = TRUE), 30)

@@ -1,0 +1,90 @@
+---
+title: "Using fingertipsR to analyse local health data"
+output: html_notebook
+---
+
+Local health data has recently been made accessible through the [Fingertips API](https://fingertips.phe.org.uk/api). This short note shows how to access the data using `fingertipsR`. We also show how to combine these data with the recent data on fast food outlet density at ward level and compare this with levels of obesity and deprivation.
+
+```{r}
+library(pacman)
+
+p_load(tidyverse, readxl,  fingertipsR, caret, caretEnsemble, data.table, ggridges, leaps, rpart, partykit, DALEX, janitor)
+
+```
+
+
+To get the data from Fingertips we need to know that the ProfileID = 143 aand AreaTypeId = 8 for wards. We use the `fingertips_data` function to extract the data (it will take a few minutes and the download is 129 MB).
+
+```{r get data, cache=TRUE}
+
+lh <- fingertips_data(ProfileID = 143, AreaTypeID = 8)
+
+```
+
+We can obtain the fast food data from .GOV.UK as follows. The *ward* data is on the third sheet.
+
+```{r}
+
+url <- "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/720059/FastFoodMetadata_LA_Ward.xlsx"
+
+
+fastfood <- downloader::download(url, "fastfood.xlsx")
+
+##
+setwd("~/Downloads")
+
+fastfoodsheets <- excel_sheets("fastfood.xlsx")
+
+fastfoodxl <- read_excel("fastfood.xlsx", "Ward Data", skip = 2) %>% janitor::clean_names()
+
+
+
+
+```
+
+We can convert the data from "long" forma to "wide" format so that each column is a variable. Because the dataset is large, we use the `data.table` package to process for speed and reduce the number of variables in the dataset.
+
+```{r}
+
+lh <- data.table(lh)
+
+lh1 <- lh %>% clean_names()
+
+lh1 <- lh1[, index := paste(indicator_id, indicator_name, timeperiod, sex) ] ## create a unique indicator variable name
+
+
+lh1 <- lh1[, .(index, area_name, area_code, value)] ## reduce number of columns
+
+
+lhw <- lh1 %>% spread(index, value) %>% janitor::clean_names() ## convert to wide format
+
+
+names(lhw)[1:5]  
+
+
+```
+
+This gives a table of `r nrow(lhw)` rows (individual wards) and `r ncol(lhw)` variables. 
+
+We can join now the datasets using the ward codes.
+
+```{r}
+
+lhw1 <- lhw %>%
+  left_join(fastfoodxl, by = c("area_code" = "x2016_ward_code")) %>% 
+  mutate(density = 1000 *total_fast_food_outlets/ x93225_total_population_2015_persons)
+
+## summary stats
+
+a <- lhw1 %>% 
+  summarise_at(vars(3:75), funs(n = n(), 
+               meanna = mean(is.na(.), na.rm = TRUE), 
+               sd =  sd(., na.rm = TRUE))) 
+
+a[1]
+
+
+
+
+```
+

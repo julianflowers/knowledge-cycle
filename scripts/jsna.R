@@ -18,11 +18,7 @@ download_pdfs <- function(url){
 search_term <- "jsna"
 
 url <-URLencode(paste0("https://www.google.com/search?q=", search_term, "&num=",  100))
-aphr <- read_html(url)  
 
-results <- aphr %>%
-  html_nodes("cite") %>%
-  html_text()
 
 
 

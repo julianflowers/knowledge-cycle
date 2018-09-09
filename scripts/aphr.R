@@ -43,5 +43,7 @@ corpus <- corpus(aphr_pdfs1)
 
 corpus
 
-kwic(corpus, "", 5) %>% View()
+kwic(corpus, "finger*", 10) %>% View()
+kwic(corpus, "phe*", 10) %>% View()
+
 

@@ -1,0 +1,638 @@
+---
+title: "Priorities"
+author: "Julian Flowers"
+date: "16/03/2018"
+output: 
+  powerpoint_presentation:
+      fig_height: 6
+      fig_width: 8
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cach= TRUE, warning = FALSE)
+
+library(pacman)
+
+p_load(readtext, quanteda, tidyverse, tidytext, myScrapers)
+# library(readtext)
+# library(quanteda)
+# library(tidyverse, quietly = TRUE)
+# library(tidytext)
+# library(myScrapers)
+# library(tabulizer)
+
+```
+
+## Knowledge cycle
+
+![](knoweldgecycle.png)
+
+
+
+
+
+## Away day
+
+![](IMG_0011.jpg)
+
+
+## Sources of priorities
+
+* Published remit letters and business plans
+* User needs and feedback e.g. social media
+* Public priorities e.g. Google / NHS Choices trends
+* Marketing data
+  
+![](priorites.png)
+
+
+![](smc.png)
+
+
+
+```{r, eval = FALSE}
+
+phe_cat <- phe_catalogue(n=94)
+
+  phe_cat
+
+```
+
+## Data to evaluate priorities
+
+INSERT PICTURE FOR SOURCES
+
+```{r get documents urls}
+
+
+
+remit_letters_list <- c("https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/523296/PHE_Remit_Letter_160513.pdf",  "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/609071/PHE_remit_1718.pdf", "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/693855/PHE_Remit_Letter_-_March_2018.pdf")
+
+menu_of_int <- "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/683016/Local_health_and_care_planning_menu_of_preventative_interventions_DM_NICE_amends_14.02.18__2_.pdf"
+
+
+phe_business_plan <- c("https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/610181/PHE_business_plan_2017_to_2018.pdf", "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/696145/PHE_Business_plan_2018.pdf")
+
+cs_survey <- "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/663683/Civil_Service_people_survey_2017_results_for_Public_Health_England.pdf"
+
+user_needs <- c("https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/675240/Public_health_outcomes_framework_2016_user_survey_report.pdf", "http://webarchive.nationalarchives.gov.uk/20171107173528/http://www.lape.org.uk/downloads/Admissions_consultation_nov8.pdf", "C:/Users/julianflowers/Downloads/Childhealthprofiles2016summaryoffeedbackexercise.pdf")
+
+#digital <- "https://www.gov.uk/government/publications/digital-first-public-health/digital-first-public-health-public-health-englands-digital-strategy"
+
+workforce <- "https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/507359/CfWI_Big_picture_challenges_context.pdf"
+
+phList <- c(remit_letters_list, menu_of_int, phe_business_plan, cs_survey, user_needs, workforce)
+
+lga <- extract_tables("lga_perception.pdf")
+
+```
+
+
+```{r}
+phe_docs <- readtext(phList[c(3, 6)]) 
+
+
+```
+
+## Documents
+
+```{r read-in-docs-create-corpus}
+
+
+# phe_docs <- phe_docs %>% data.frame() %>%
+#   separate(doc_id, remove = FALSE, c("root", "stem"),sep = "/" ) %>%
+#   select(-root, doc_id = stem, text)
+
+
+# Clean
+phe_docs <- phe_docs %>% mutate(text = tm::removeNumbers(text))
+phe_docs <- phe_docs %>% mutate(text = tolower(text))
+phe_docs <- phe_docs %>% mutate(text = tm::stripWhitespace(text))
+phe_docs <- phe_docs %>% mutate(text = tm::removeWords(text, c(stopwords("en"), "m", "london","street", "brine", "victoria", "mp", "parliamentary", "swh" , "steve")))
+phe_docs <- phe_docs %>% mutate(text = str_replace_all(text, "\\n", ""))
+phe_docs <- phe_docs %>% mutate(text = str_replace_all(text, "\\r", ""))
+#phe_docs <- phe_docs %>% mutate(text = str_replace_all(text, "[A-Za-z]@", ""))
+
+
+
+
+
+phe_docs_corp <- corpus(phe_docs)
+summary(phe_docs_corp) %>% 
+  data.frame() 
+
+```
+
+## Tidy version of network plot with ggraph: remit letters and business plans
+
+```{r fig.height=10, fig.width=10}
+
+library(igraph)
+library(ggraph)
+#phe_docs
+bigrams <- create_bigrams(phe_docs, text)
+big_count <- bigrams %>%
+  group_by(doc_id, bigram) %>%
+  count(sort = TRUE) %>%
+  ungroup() %>%
+  #filter(!bigram %in% c())
+  mutate(doc_id = str_replace_all(doc_id, ".pdf", "")) %>%
+  #separate(bigram, c("word1", "word2")) %>%
+  filter(n > 2)
+
+big_graph <- big_count %>%
+  graph_from_data_frame()
+
+
+ggraph(big_graph, layout = "kk") +
+  geom_edge_link(aes(edge_alpha = n)) +
+  geom_node_point(color = "green") +
+  geom_node_text(aes(label = name), size = rel(6.5), alpha = 0.7, colour = "black", vjust = 1, hjust = 1)+
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Network plot of 2017-19 remit letters and PHE business plan")
+
+
+
+```
+
+
+
+
+## Network plot of remit letters (2)
+
+```{r network-plot, fig.height=5, fig.width=7}
+
+dfm_phe <- dfm(phe_docs_corp, remove = c(stopwords("en"), "government", "phe", "health", "uploads", "harlow", "nhs", "england", "the_nhs", "phe_harlow", "attachment_data", "victoria", "london", "swh", "eu"), remove_punct = TRUE, remove_numbers = TRUE, tolower = TRUE, ngrams = 21:3, context = "window") 
+
+feat <- names(topfeatures(dfm_phe, 200))
+  
+dfm_select(dfm_phe, feat) %>% textplot_network(min_freq = 0.9, omit_isolated = TRUE, vertex_labelfont = "Arial Narrow") +
+  labs(title = "Network map of most frequent terms used in remit letters and PHE business plan", 
+       subtitle = "2 and 3 word ngrams") 
+```
+
+## Top terms
+
+```{r fig.height=8, fig.width=8}
+top100 <- data.frame(
+  
+  list(
+    term = names(topfeatures(dfm_phe, 100)), 
+    frequency = unname(topfeatures(dfm_phe, 100))
+  )
+  
+)
+
+top100 %>%
+  ggplot(aes(reorder(term, frequency), frequency)) +
+  geom_point() +
+  coord_flip() +
+  govstyle::theme_gov() +
+  theme(axis.text.y = element_text(size = 10))
+
+```
+
+## Remit letter similarity
+
+```{r}
+
+textstat_simil(dfm_phe)
+
+summary(phe_docs_corp)
+
+```
+
+Simply:
+* Remit letters similar this year and last
+* Business plans now less similar
+
+```{r}
+
+palette <- RColorBrewer::brewer.pal(n = 10, "Spectral")
+textplot_wordcloud(dfm_phe[-1], comparison = TRUE, min_count = 3, max_size = .3, color = palette , max_words = 500, rot = .4, random_order = FALSE, font = "Arial")
+
+
+
+
+
+```
+
+
+```{r}
+library(quanteda)
+library(cowplot)
+
+t <- textplot_xray(kwic(phe_docs_corp, "data*"),
+              kwic(phe_docs_corp, "surveillance*"), 
+              kwic(phe_docs_corp, "evidence*"), 
+              kwic(phe_docs_corp, "analysis*")) +
+  labs(title = "Topics in remit letters and PHE priorities")
+
+ 
+t2 <- textplot_xray(kwic(phe_docs_corp, "diabetes*"),
+              kwic(phe_docs_corp, "cancer*"), 
+              kwic(phe_docs_corp, "mental*"), 
+              kwic(phe_docs_corp, "physical*"), 
+              kwic(phe_docs_corp, "obes*"), 
+              kwic(phe_docs_corp, "cardio*")) +
+  labs(title = "Topics in remit letters and PHE priorities")
+
+
+cowplot::plot_grid(t, t2, ncol = 1)
+
+
+```
+
+
+## LGA report on LA perceptions of public health
+
+>- LGA survey of PH leaders in LAs conducted 2017
+>- Perception of ph since transition
+>- Local ph priorities
+>- Ambition
+>- 51 repsonses/ `r round(51/152 * 100, 2)` % response
+
+
+## Local priorities for public health
+
+
+```{r table 3, eval = FALSE}
+
+data.frame(Priority = lga[[3]][-c(1:3)]) %>%
+  mutate(Priority = str_replace(Priority, "n/a", "0" ), 
+           nos = str_extract_all(Priority, "n/a|[0-9].*"),
+         Priority = str_replace_all(Priority, "[0-9].*", ""), 
+         nos = ifelse(is.na(nos), , nos) ) %>%
+  separate(nos, c("2015", "Number", "2017")) %>%
+  knitr::kable(caption = lga[[3]][1])
+   
+```
+
+## Current priority health issues
+
+```{r table 4, eval = FALSE}
+
+#lga[[4]]
+
+data.frame(Priority = lga[[4]][-c(1:4)]) %>%
+  mutate(Priority = str_replace(Priority, "n/a", "0" ), 
+           nos = str_extract_all(Priority, "n/a|[0-9].*"),
+         Priority = str_replace_all(Priority, "[0-9].*", ""), 
+         nos = ifelse(is.na(nos), , nos) ) %>%
+  separate(nos, c("2015", "Number", "2017")) %>%
+  knitr::kable(caption = lga[[4]][1])
+   
+```
+
+
+```{r table 5, eval=FALSE}
+
+#lga[[6]]
+
+lga5 <- data.frame(Priority = lga[[5]][-c(1:4)]) %>%
+  mutate(Priority = str_replace(Priority, "n/a", "0" ), 
+         Priority = str_replace(Priority, "50p", "fifty p " ), 
+           nos = str_extract_all(Priority, "n/a|[0-9].*"),
+         Priority = str_replace_all(Priority, "[0-9].*", ""), 
+         nos = ifelse(is.na(nos), , nos) ) %>%
+  separate(nos, c("Most important no", "Most important %", "Least important no", "Least important %")) 
+
+lga6 <- data.frame(lga[[6]][-c(1:2), 1:3]) %>%
+  separate(X2, c("Most important no", "Most important %")) %>%
+  separate(X3, c("Least important no", "Least important %")) %>%
+  rename(Priority = X1) %>%
+  mutate(`Most important %` = ifelse(is.na(`Most important %`),"" , `Most important %`),
+         `Least important %` = ifelse(is.na(`Least important %`),"" , `Least important %`))
+
+bind_rows(lga5, lga6) %>%
+  knitr::kable()
+   
+```
+
+## Table 6: The main barriers to the council achieving better public health outcomes in respondents’ local areas over the next two years
+
+```{r barriers, eval = FALSE}
+
+
+data.frame(Barrier = lga[[7]][-c(1:4)]) %>%
+  mutate(Barrier = str_replace(Barrier, "n/a", "0" ), 
+           nos = str_extract_all(Barrier, "n/a|[0-9].*"),
+         Barrier = str_replace_all(Barrier, "[0-9].*", ""), 
+         nos = ifelse(is.na(nos), , nos) ) %>%
+  separate(nos, c("2015", "Number", "2017")) %>%
+  knitr::kable(caption = lga[[7]][1])
+   
+```
+
+## Table 9: Areas where respondents would like to see more preventative health activity within their council
+
+```{r table 9, eval=FALSE}
+
+#lga[[10]]
+
+data.frame(Priority = lga[[10]][-c(1:4)]) %>%
+  mutate(Priority = str_replace(Priority, "n/a", "0" ), 
+           nos = str_extract_all(Priority, "n/a|[0-9].*"),
+         Priority = str_replace_all(Priority, "[0-9].*", ""), 
+         nos = ifelse(is.na(nos), , nos) ) %>%
+  separate(nos, c("2015", "Number", "2017")) %>%
+  knitr::kable(caption = lga[[4]][1])
+   
+```
+
+
+## Table 10: How helpful respondents have found the following aspects of support they have received from your local council public health team
+
+```{r table 11, eval=FALSE}
+
+#lga[11] 
+## nb needs more work
+
+data.frame(Support = lga[[11]][-c(1:8)])  %>%
+  as.tibble %>%
+  mutate(nos = str_extract_all(Support, "n/a|[0-9].*"), 
+           Support = str_replace_all(Support, "[0-9].*", ""), 
+         nos = str_replace_all(nos, "\\(", ""), 
+         nos = str_replace_all(nos, "[0-9].?\\)", "")) %>%
+  separate(nos, c("Very helpful", "Very helpful.", 
+                    "Fairly helpful", "Fairly helpful.", 
+                    "Not very helpful", "Not very helpful.",
+                    "Not at all helpful", "Not at all helpful.",  
+                    "Don't know", "Don't know.",
+                    "Not applicable", "Not applicable.") 
+             ) %>%
+     add_row(.,  "Very helpful" = 2015, "Very helpful." = 2017, 
+             "Fairly helpful" = 2015, "Fairly helpful." = 2017, 
+             "Not very helpful" = 2015, "Not very helpful." = 2017, 
+             "Not at all helpful" = 2015, "Not at all helpful." = 2017, 
+             "Don't know" = 2015, "Don't know." = 2017, 
+             "Not applicable" = 2015, "Not applicable." = 2017, 
+             .before = 1) %>%
+  knitr::kable()
+  
+
+
+
+   
+```
+
+
+## PH surveillance - primary data sources
+
+* The [PHE approach to surveillance ](https://www.gov.uk/government/publications/public-health-england-approach-to-surveillance/public-health-england-approach-to-surveillance#appendix-phe-data-catalogue-of-primary-data-collections) lists a set of of primary data collections
+
+```{r primary data collections, message=FALSE, warning=FALSE}
+
+library(rvest)
+
+page <- read_html("https://www.gov.uk/government/publications/public-health-england-approach-to-surveillance/public-health-england-approach-to-surveillance#appendix-phe-data-catalogue-of-primary-data-collections") %>%
+  html_nodes("li") %>%
+  html_text() %>%
+  .[98:107] %>%
+  data.frame() %>%
+    knitr::kable()
+
+names(page) <- "PHE data catalogue of primary data collections"
+
+page
+
+
+```
+
+
+## PHE on social media: Facebook
+
+```{r facebook-logon}
+
+library(Rfacebook, quietly = TRUE)
+
+fbook_codes <- Sys.getenv(c("key", "secret"))
+# # 
+fb_oauth <- fbOAuth(app_id = fbook_codes[1], app_secret= fbook_codes[2], extended_permissions = TRUE)
+save(fb_oauth, file = "fb_oauth")
+
+```
+
+
+```{r facebook pages, echo = FALSE}
+
+load("fb_oauth")
+
+page <- getPage(page="PublicHealthEngland", token=fb_oauth, n=1000, verbose = FALSE)
+
+likes <- page[which.max(page$likes_count),]
+
+likesM <- likes$message
+
+comments <- page[which.max(page$comments_count),]
+
+commentsM <- comments$message
+
+shares <- page[which.max(page$shares_count),]
+
+sharesM <- shares$message
+
+```
+
+
+* Can access PHE public Facebook pages via Facebook API - (this needs a developer account) 
+* PHE has posted ~ 500 times since 2014
+* Most **liked** PHE post was
+    + `r likesM` published in `r lubridate::year(likes$created_time)`
+    + This had `r likes$likes_count` likes
+* Most **commented** PHE post was
+    + `r commentsM` published in `r lubridate::year(comments$created_time)`
+    + This had `r comments$comments_count` comments
+* Most **shared** PHE post was
+    + `r sharesM` published in `r lubridate::year(shares$created_time)`
+    + This was shared `r shares$shares_count` times  
+    
+
+    
+## Twitter 
+
+
+
+```{r tweets}
+
+library(rtweet)
+# library(graphTweets)
+# 
+phe <- search_tweets("@PHOutcomes", n = 18000, include_rts = FALSE, verbose = FALSE)
+
+phe$text
+# 
+# glimpse(phe)
+# 
+# phe %>%
+#   gt_edges(text, screen_name, status_id) %>% 
+#   gt_graph() -> graph
+# 
+# phe %>% 
+#   gt_edges(text, screen_name, status_id) %>% 
+#   gt_collect() -> edges
+# 
+# names(edges)
+# 
+# phe %>% 
+#   gt_edges(text, screen_name, status_id) %>% 
+#   gt_nodes(meta = TRUE) %>% 
+#   gt_collect() -> graph
+# 
+# map(graph, nrow)
+# map(graph, names)
+# devtools::install_github("JohnCoene/graphTweets")
+# devtools::install_github("JohnCoene/echarts4r")
+# library(echarts4r)
+# 
+# phe %>% 
+#   #gt_edges(text, screen_name, status_id, datetime = "created_at") %>% 
+#   gt_nodes(meta = TRUE) %>% 
+#   gt_collect() -> gt
+# 
+# 
+# map(gt, nrow)
+# map(gt, names)
+# 
+# gt$nodes$name <- ifelse(is.na(gt$nodes$name), gt$nodes$nodes, gt$nodes$name)
+# gt$nodes$followers_count <- ifelse(is.na(gt$nodes$followers_count), 0, gt$nodes$followers_count)
+# 
+# e_charts() %>% 
+#   e_graph_gl() %>% # use graph GL for performances
+#   e_graph_edges(gt$edges, source, target) %>% 
+#   e_graph_nodes(gt$nodes, name, followers_count, n_edges) 
+# 
+# 
+phef <- lookup_users("PHE_uk")
+# 
+min_date <- substr(min(phe$created_at), 1, 10)
+max_date <- substr(max(phe$created_at), 1, 10)
+max_retweeted <- phe[which.max(phe$retweet_count),]
+maxrt <- max_retweeted$text[1]
+# 
+# 
+# ids<- rtweet::get_followers("@PHE_uk")
+# lu <- lookup_users(ids) %>% arrange(-followers_count) %>%
+#   filter(str_detect(location,"England|UK"))
+# 
+# lu %>%
+#   ggplot() +
+#   geom_histogram(aes(log(followers_count)), bins = 100)
+# 
+```
+
+We can retrieve the latest (last 7 days) tweets from `@PHE_uk` as well as those with hashtags like #PHOF and #HealthMatters.
+* PHE has `r phef$followers_count` followers
+* Between `r min_date` and `r max_date` there were `r nrow(phe)` tweets from `@PHE_uk`
+* The most retweeted post was
+    + `r maxrt[1]`
+    + with `r max_retweeted$retweet_count` retweets
+
+## Hashtags
+
+```{r}
+
+hashtag <- "#phehealthmatters"
+
+hash <- search_tweets(hashtag, n = 18000, include_rts = FALSE, verbose = FALSE)
+
+most_retweeted <- hash %>%
+  filter(retweet_count == max(retweet_count)) %>%
+  select(text)
+# 
+# 
+# 
+
+```
+
+
+## Hashtags
+
+The most retweeted post for #phehealthmatters is:
+
+    + `r most_retweeted`
+
+
+
+## Fingertips statistics: pageviews
+
+![](ftips_views.png)
+
+## Events
+
+![](ftips_events.png)
+
+## Referral sources
+
+![](ftips_source.png)
+
+## Weekly .gov.uk stats
+
+```{r}
+
+
+url <- "https://www.gov.uk/performance/site-activity-public-health-england"
+
+get_phe_webstats <- function(url, type = "Publications"){
+  
+require(rvest)
+require(tidyverse)
+
+date <- read_html(url) %>%
+  html_nodes(".summary") %>%
+  html_text() %>%
+  .[1]
+  
+analytics1 <- read_html(url) %>%
+  html_nodes(".visualisation-inner") %>%
+  html_text() 
+
+publications <- analytics1[7] %>%
+  str_replace("Page title Click to sort\nPageviews Click to sort\nUnique pageviews" ,"") %>%
+  str_replace_all("\\- GOV.UK", "") %>%
+  str_replace_all(., "([0-9])([A-z])", "\\1. \\2") %>%
+  str_split(., "\\.") %>%
+  map(., function(x) str_replace_all(x, "\\n", "; ")) %>%
+  data.frame() %>%
+  separate(1, c("output", "pageviews", "users"), sep = "; ") %>%
+  mutate(date = date)
+  
+
+statistics <- analytics1[9] %>%
+  str_replace("Page title Click to sort\nPageviews Click to sort\nUnique pageviews" ,"") %>%
+  str_replace_all("\\- GOV.UK", "") %>%
+  str_replace_all(., "([0-9])([A-z])", "\\1. \\2") %>%
+  str_replace_all(., "([0-9])(2017)", "\\1. \\2") %>%
+  str_split(., "\\.") %>%
+  map(., function(x) str_replace_all(x, "\\n", "; ")) %>%
+  data.frame() %>%
+  separate(1, c("output", "pageviews", "users"), sep = "; ") %>%
+  mutate(date = date)
+
+if(type == "Publications") print(publications)
+if(type == "Statistics") print(statistics)
+
+}    
+
+test <-get_phe_webstats(url = url, type = "Statistics") %>%
+  knitr::kable()
+         
+
+
+
+```
+
+```{r google trends}
+devtools::install_github("PMassicotte/gtrendsR")
+data(countries)
+library(gtrendsR)
+plot(gtrends(c("PHE Fingertips", "PHOF"), geo = "GB" )) +geom_smooth(color = "black") +
+  geom_point() +
+  labs(title = "Google searches for `Fingertips`") +
+  geom_smooth()
+
+
+
+```
+
