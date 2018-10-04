@@ -1,0 +1,208 @@
+---
+title: "Lightning talk"
+author: "Julian Flowers"
+date: "27/09/2018"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, message = FALSE, warning = FALSE)
+library(pacman)
+p_load(tidyverse, fingertipsR, fingertipscharts, widgetframe)
+```
+
+## Outline
+* Introducing R packages to interact with Fingertips data
+* Background to Fingertips
+* The Fingertips API
+* fingertipsR
+* fingertipscharts
+* Future directions
+
+## Fingertips 1
+
+- Open data under Open Gov. Licence
+- 50m + rows of data
+- Public and population health indicators
+- Arranged in profiles (themes and topics) + domains (sub-themes and sub-topics)
+- Cut by geography
+
+## Fingertips 2
+
+<iframe src = "https://fingertips.phe.org.uk/" width = 800 height = 600> </iframe>
+
+
+## Fingertips behind the scenes
+
+![](data-access.png)
+
+## Fingertips API
+
+<iframe src = "https://fingertips.phe.org.uk/api" width = 800 height = 600> </iframe>
+
+
+- RESTful
+- Screenshot
+- Link
+
+
+
+## fingertipsR
+
+- Available on CRAN
+- On version 1.0.9
+- Main purpose is to make it easy to get Fingertips data
+- Interacts with Fingertips API
+    * Metadata
+    * Data extraction
+    * Limited analytical functions
+
+```{r cars, echo = TRUE}
+
+#install.packages("fingertipsR")
+
+library(fingertipsR)
+fingertips_stats()
+
+```
+
+## Data extraction
+
+- workhorse is `fingertips_data` function
+- Minimum input is profile, indicator or domain ID
+- By default searches for UTLA data - other geographies need to be specified by *AreaTypeID*
+- Returns a tibble
+- Example - extract Health Profile data
+
+```{r pressure}
+
+example <- fingertips_data(ProfileID = 26, AreaTypeID = c(101, 102))
+head(example)
+
+
+```
+
+## Analytical functions
+
+- Limited
+- Performance 
+- Identifying indicator-area pairs with adverse comparative performance and adverse trend
+- `fingertips_redred`
+
+```{r}
+
+performance <- fingertips_redred(ProfileID = 26, Comparator = "England")
+
+head(performance)
+
+
+```
+
+```{r}
+
+performance %>%
+  ggplot(aes(IndicatorName, forcats::fct_rev(AreaName))) +
+  geom_tile(fill = "red") +
+  scale_x_discrete(position  = "top") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0), 
+        axis.text = element_text(size = rel(.5))) +
+  labs(x= "", y = "")
+
+
+```
+
+## Other functions
+
+- Deprivation scores
+
+```{r}
+dep <- deprivation_decile()
+dep
+
+```
+
+
+## fingertipscharts
+
+Having extracted data it can be visualised using the `fingertipscharts` package which produces visualisations available through the Fingertips website.
+
+These include:
+
+* Overview (heatmap)
+* Area profiles (spine chart)
+* Box plots
+* Indicator comparison (scatter plot)
+* Trends
+* Area comparison (bar charts)
+* Maps
+* Population pyramids
+
+## Example 1: trends and variation in male life expectancy
+
+```{r message=FALSE, warning=FALSE}
+
+le <- example %>%
+  filter(str_detect(IndicatorName, "Life") , Sex == "Male") 
+
+p <- fingertipscharts::box_plots(le, timeperiod = Timeperiod, value = Value, 
+                                 title = "Life expectancy and birth: variation over time")
+
+p
+
+```
+
+
+## Example 2: Drawing maps
+
+```{r}
+
+library(fingertipsR)
+library(dplyr)
+library(fingertipscharts)
+df <- fingertips_data(40401, AreaTypeID = 101) %>%
+        filter(Sex == "Male" &
+                       AreaType == "District & UA" &
+                       TimeperiodSortable == max(TimeperiodSortable))
+ 
+## ultra-generalised lower tier LA boundaries
+ 
+ons_api <- "https://opendata.arcgis.com/datasets/ae90afc385c04d869bc8cf8890bd1bcd_3.geojson"
+ 
+ordered_levels <- c("Better",
+                    "Similar",
+                    "Worse",
+                    "Not compared")
+df <- df %>%
+        mutate(ComparedtoEnglandvalueorpercentiles =
+                       factor(ComparedtoEnglandvalueorpercentiles,
+                              levels = ordered_levels))
+ 
+ 
+p <- fingertipscharts::map(data = df,
+                           ons_api = ons_api,
+                           area_code = AreaCode,
+                           fill = ComparedtoEnglandvalueorpercentiles,
+                           title = "Premature deaths from heart disease",
+                           subtitle = "Males in Lower Tier Local Authorities England",
+                           copyright_size = 3)
+p
+```
+
+## Future directions
+
+* User needs
+    + User driven profiles
+    + User driven area selection
+* Profile review
+* Small area data
+* Developing API
+* Automated reporting
+* Indicator production pipelines
+
+## Further resources
+
+* [Fingertips home page](https://fingertips.phe.org.uk)
+* [Vignettes](https://github.com/ropensci/fingertipsR/blob/master/vignettes/lifeExpectancy.Rmd)
+* [Github](https://github.com/ropensci/fingertipsR)
+  
+
