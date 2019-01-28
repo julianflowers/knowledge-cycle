@@ -1,0 +1,62 @@
+---
+title: "Evaluation methods"
+subtitle: "PHE evaluation working group"
+output: html_notebook
+---
+
+Evaluation method| Description  |
+-----------------|--------|
+RCT           | A number of eligible people are randomly assigned to 2 or more groups: ●	One group receives the intervention being tested. ●	The other has an alternative intervention, a dummy intervention (placebo) or no intervention at all. The outcomes are measured, and any difference in response between the two groups is assessed statistically. An RCT may include the following elements: ●	cost-effectiveness analysis ●	process evaluation: context, implementation (dose, fidelity) and mechanisms of action
+ |
+Cluster RCT |A type of RCT where the random allocation of groups is determined by the level at which the intervention is given. For example, groups might include: ●	a clinical team ●	patients at a general practice surgery, hospital or in a local government area. Recruitment may occur either before or after participants are allocated to groups. ‘Before’ is preferable, as knowledge of allocation may skew the results.
+|
+Stepped-wedge RCT | An RCT where the random allocation determines when, instead of whether, participant groups get the intervention. Initially, all participants are in the control group, and nobody receives the intervention. Groups continue to act as controls until they receive the intervention, until eventually all groups have had the intervention.
+|
+Factorial RCT |Participants are randomly allocated to one or more intervention components: A, B, both A and B, or to a control group. By comparing the components of the intervention on their own and in combination, evaluators can determine which components should be carried through to a standard two-arm RCT.
+ |
+Feasibility RCT | These are done before undertaking an individual-level, cluster, stepped-wedge RCT, in the same setting, to find out whether it is feasible to do so. They are used to answer questions like: ●	Are participants willing to be randomised to this intervention and control? ●	What rates of recruitment and follow up can be achieved in this setting? ●	To what extent is the intervention actually delivered or used in the intervention group? ●	Were there any instances of 'contamination' of the control group? ●	Was it possible to collect accurate and complete outcome measures? This stage also allows further assessment of the acceptability, usability and potential effects of the intervention.
+|
+SMART sequential, multiple assignment, randomised trial | Based on factorial RCT, but includes sequential randomisation to further intervention components at pre-specified decision points. This is based on the participants’ response to treatment, starting with as few as 2 and creating multiple arms.
+|
+Non-randomised controlled before-and-after |A control group is selected on the basis of its similarity to the group being offered the digital health intervention. Similarity is especially important regarding: ●	factors associated with the outcomes of interest (for example, the income levels of families in a healthy eating study) ●	factors likely to affect implementation or uptake of the DHI. Because the groups are not randomised, the control group must be carefully selected to ensure any differences in outcomes are not due to differences between the groups -- particularly differences that are difficult to measure. Any differences must also be accounted for in the analysis.
+|
+Uncontrolled before-and-after (repeated measures) | Participants have an assessment at baseline and one or more  follow ups. This is the same as a non-randomised controlled study, but lacks the control group
+|
+Interrupted time series | Multiple measurements are taken using serial quantitative surveys before, during and after an intervention – or before and during if an intervention is the introduction of something routine or permanent. Each measurement is taken from a sample of the same population, instead of the same people being followed up, as in a RCT or non-randomised study. A minimum of three baseline measures should be taken before and after an intervention  is introduced, to allow for pre-existing trends. The data collection method can be tailored to allow assessment of the levels of awareness, use and views of a DHI in the target group, during or after the intervention. This allows the examination of relationships between demographic variables, awareness/use and outcomes
+|
+Survey(s) of the target population | An assessment of the target population for the DHI following its introduction. This is similar to the interrupted time series, except there are no baseline data points, for example due to a lack of time or funds. A tailored survey allows the  assessment of the level of awareness and use of a DHI within the target group, plus any other questions. This can use either a pre-existing survey with added questions or a new survey. Relationships between demographic variables, awareness/use and outcomes can then be examined
+|
+Propensity score-matched control study |A non-randomised control study, with controls identified by statistical matching. (Participants are given a ‘score’) |
+App store data | This refers to statistics and other data collected by the iOS App Store or Android Play store. This includes measures like:●	the number of downloads or installations ●	star ratings from users ●	user comments and reviews|
+In-app analytics  | This refers to data, records and statistics generated when users interact with an app – for example, the number of steps recorded in a pedometer app. 
+|
+Web analytics |This approach measures the user’s interaction with web-based apps and services. It includes things like:●	downloads ●	clicks  ●	time spent on the site ●	retention and repeat visits ●	activity on the page. It uses a standardised toolset and terminology, and allows the data to be measured by volume, date and time, geography, demographics, online referrals and more. 
+| 
+A/B testing | This involves testing two different versions of a user journey, to understand these differences affect users’ behaviour and outcomes. |
+Online surveys |Surveys can be used to capture both quantitative and qualitative data from users. There are many standard processes and platforms familiar to users on the web.  
+|
+Net promoter score (NPS) |A method commonly used to understand customer loyalty. Users are asked to rate a service from 1 to 10.  Based on this, users are categorised as ‘Promoters’ (scoring 9 or 10), ‘Passives’ (scoring 7 or 8) or ‘Detractors’ (scoring 6 or less). The NPS score is found by subtracting the percentage of customers who are Detractors or Passives from the percentage who are promoters. This results in an NPS score between -100 and 100. 
+|
+Likes and shares | An extremely common method of measuring whether content has been enjoyed or shared by users on social media platforms |
+Data from wearables or connected devices | This simply refers to data collected from devices associated with activity – like heart rate, movement or sleeping patterns.
+|
+Cohort analysis | Cohort analysis is an approach that takes the information from a given data set, and divides the users into related groups -- rather than studying them as individuals. 
+| 
+Funnel analysis | This approach uses data to build a picture of an individual’s behaviour over time across a number of touchpoints – like the journey from an email marketing message to an in-person visit. This end-to-end journey will typically involve losing some users at each stage. Like a funnel, the cohort becomes smaller as it progresses towards the final stage. 
+|
+Digital uptake | This involves measuring the differences in usage when a service is digitised -- ie, measuring the increase in digital uptake and decrease in real-world usage.  
+|
+Micro-randomised trials | 
+|
+Self-reporting | This approach involves prompting the user to report their own data, usually through a feedback function in an app or website.The data is timestamped, geo-located and categorised by user input.
+|
+Search traffic analysis | Analysing the data collected by search engines, examining the search frequency of relevant terms. 
+|
+Email tracking | Using email to maintain contact with users and develop a relationship. Using standardised email marketing techniques, teams can measure:●	open rate ●	clickthrough rate ●	sign-ups
+|
+Advertising data | Analysing the data available from online advertising networks to assess the performance of online campaigns. The target group is established using the tools provided by advertising networks, using factors like their demographic, interests or location. The resulting data can provide insights into whether a user viewed, clicked or otherwise interacted with the advertising. 
+|
+Lab-based usability testing | This approach allows teams to test a service or product with real users. Users are asked to complete certain tasks. Researchers typically observe the process to see where they encounter problems or experience confusion. 
+|
+Guerilla user research | A spontaneous method of gathering feedback and insights from users “in the wild” – in other words, talking to people on the street.  
+|
